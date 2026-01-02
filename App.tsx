@@ -114,7 +114,8 @@ const App: React.FC = () => {
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [selectedModel, setSelectedModel] = useState<GeminiModel>(() => {
     const savedModel = localStorage.getItem('gemini_selected_model');
-    return (savedModel as GeminiModel) || 'gemini-flash-latest'; // Changed default model to gemini-flash-latest
+    // Set default model to 'gemini-flash-latest' since Gemini 3 models are removed
+    return (savedModel as GeminiModel) || 'gemini-flash-latest'; 
   });
 
   const categories: Category[] = ['Technology', 'Markets', 'Finance', 'Politics', 'Geo-politics'];

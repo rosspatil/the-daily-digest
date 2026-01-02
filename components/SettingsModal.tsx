@@ -14,8 +14,6 @@ interface SettingsModalProps {
 const MODELS: { id: GeminiModel; name: string; description: string }[] = [
   { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash-Lite', description: 'Fastest for basic text generation with low latency.' },
   { id: 'gemini-flash-latest', name: 'Gemini 2.5 Flash (Latest)', description: 'General purpose Flash model from the 2.5 series, suitable for broad text tasks.' },
-  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash Preview', description: 'Recommended for balanced speed and capability in basic text tasks.' },
-  { id: 'gemini-3-pro-preview', name: 'Gemini 3 Pro Preview', description: 'For complex text tasks, advanced reasoning, and higher quality outputs.' },
 ];
 
 const SettingsModal: React.FC<SettingsModalProps> = ({

@@ -1,5 +1,4 @@
 
-
 export interface NewsItem {
   id: string;
   title: string;
@@ -47,4 +46,4 @@ export const SUB_CATEGORIES: Record<Category, string[]> = {
   'Technology': ['All', 'AI', 'Startups', 'Hardware', 'Software', 'Cybersecurity']
 };
 
-export type GeminiModel = 'gemini-flash-lite-latest' | 'gemini-flash-latest' | 'gemini-3-flash-preview' | 'gemini-3-pro-preview';
+export type GeminiModel = 'gemini-flash-lite-latest' | 'gemini-flash-latest';
