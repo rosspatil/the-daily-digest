@@ -1,0 +1,5 @@
+{
+  "name": "My Daily Digest",
+  "description": "Your personal, high-fidelity daily scan of the tech industry. Leveraging a user-selected Gemini model to synthesize the last 24 hours into a prioritized digest, with local cache retention for up to 6 hours.",
+  "requestFramePermissions": []
+}
