@@ -40,8 +40,20 @@ const SummaryModal: React.FC<SummaryModalProps> = ({ isOpen, onClose, item }) =>
           <p className="text-slate-300 leading-relaxed text-base">
             {item.summary}
           </p>
-          <div className="mt-6 pt-4 border-t border-white/10 text-right">
+          <div className="mt-6 pt-4 border-t border-white/10 flex justify-between items-center">
             <span className="text-xs font-medium text-slate-500">Source: {item.source}</span>
+            <a 
+              href={item.uri} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-emerald-300 flex items-center gap-1.5 transition-all group/btn"
+              aria-label={`Read full article from ${item.source}`}
+            >
+              <span className="group-hover/btn:mr-1 transition-all">Read Full Article</span>
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path>
+              </svg>
+            </a>
           </div>
         </div>
       </div>

@@ -1,4 +1,5 @@
 
+
 export interface NewsItem {
   id: string;
   title: string;
@@ -7,6 +8,7 @@ export interface NewsItem {
   subCategory?: string;
   source: string;
   relevance: number;
+  uri: string; // Added to support direct linking to articles
   sourceDomain?: string; // Re-add this for favicon resolution
 }
 
@@ -36,14 +38,15 @@ export interface NewsState {
   lastUpdated: string | null;
 }
 
-export type Category = 'Politics' | 'Geo-politics' | 'Markets' | 'Finance' | 'Technology';
+export type Category = 'Politics' | 'Geo-politics' | 'Markets' | 'Finance' | 'Technology' | 'Professional';
 
 export const SUB_CATEGORIES: Record<Category, string[]> = {
   'Politics': ['All', 'India', 'EU', 'US'],
   'Geo-politics': ['All', 'Diplomacy', 'Conflict', 'Trade'],
   'Markets': ['All', 'Equities', 'Commodities', 'Currencies', 'Bonds'],
   'Finance': ['All', 'Economy', 'Banking', 'Fintech', 'Crypto'],
-  'Technology': ['All', 'AI', 'Startups', 'Hardware', 'Software', 'Cybersecurity']
+  'Technology': ['All', 'AI', 'Startups', 'Hardware', 'Software', 'Cybersecurity'],
+  'Professional': ['Golang', 'Customer Support AI', 'Cloud Computing', 'Leadership'] // 'All' removed
 };
 
 export type GeminiModel = 'gemini-flash-lite-latest' | 'gemini-flash-latest';

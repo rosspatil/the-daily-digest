@@ -54,6 +54,23 @@ const PRESET_SOURCES_MAP: Record<Category, SourceOption[]> = {
     { id: 'engadget', name: 'Engadget', domain: 'engadget.com' },
     { id: 'wired', name: 'Wired', domain: 'wired.com' },
     { id: 'hn', name: 'Hacker News', domain: 'news.ycombinator.com' },
+  ],
+  'Professional': [
+    // Golang Sources
+    { id: 'go-blog', name: 'Go Blog', domain: 'go.dev' },
+    { id: 'medium-go', name: 'Medium Golang', domain: 'medium.com' },
+    // Customer Support AI Sources
+    { id: 'zendesk-ai', name: 'Zendesk Blog', domain: 'zendesk.com' },
+    { id: 'intercom-ai', name: 'Intercom Blog', domain: 'intercom.com' },
+    // Cloud Computing Sources
+    { id: 'aws-blog', name: 'AWS News Blog', domain: 'aws.amazon.com' },
+    { id: 'azure-blog', name: 'Azure Blog', domain: 'azure.microsoft.com' },
+    { id: 'gcp-blog', name: 'Google Cloud Blog', domain: 'cloud.google.com' },
+    { id: 'techcrunch-cloud', name: 'TechCrunch', domain: 'techcrunch.com' }, // General TechCrunch, filter by cloud topic
+    // Leadership Sources
+    { id: 'hbr-lead', name: 'HBR Leadership', domain: 'hbr.org' },
+    { id: 'manager-tools', name: 'Manager Tools', domain: 'manager-tools.com' },
+    { id: 'firstround-rev', name: 'First Round Review', domain: 'firstround.com' }, // General First Round, filter by leadership topic
   ]
 };
 
@@ -93,14 +110,20 @@ const App: React.FC = () => {
   const [showLowSignal, setShowLowSignal] = useState(false);
   
   const [activeCategory, setActiveCategory] = useState<Category>('Technology');
-  const [activeSubCategory, setActiveSubCategory] = useState<string>('All');
+  // Initialize activeSubCategory considering 'All' might be absent for 'Professional'
+  const [activeSubCategory, setActiveSubCategory] = useState<string>(
+    activeCategory === 'Professional' && SUB_CATEGORIES['Professional'].length > 0
+      ? SUB_CATEGORIES['Professional'][0] // Default to the first sub-category if 'All' is removed
+      : 'All'
+  );
   
   const [categorySources, setCategorySources] = useState<Record<Category, string[]>>({
     'Technology': [],
     'Markets': [],
     'Finance': [],
     'Politics': [],
-    'Geo-politics': []
+    'Geo-politics': [],
+    'Professional': [], // Initialize for the new category
   });
 
   const [currentPage, setCurrentPage] = useState(1);
@@ -118,7 +141,7 @@ const App: React.FC = () => {
     return (savedModel as GeminiModel) || 'gemini-flash-latest'; 
   });
 
-  const categories: Category[] = ['Technology', 'Markets', 'Finance', 'Politics', 'Geo-politics'];
+  const categories: Category[] = ['Technology', 'Markets', 'Finance', 'Politics', 'Geo-politics', 'Professional']; // Add 'Professional'
 
   const sortedItems = useMemo(() => {
     const currentThreshold = showLowSignal ? 1 : 5;
@@ -171,7 +194,12 @@ const App: React.FC = () => {
 
   const handleCategoryChange = (cat: Category) => {
     setActiveCategory(cat);
-    setActiveSubCategory('All');
+    // Set default sub-category based on category's available sub-categories
+    setActiveSubCategory(
+      cat === 'Professional' && SUB_CATEGORIES['Professional'].length > 0
+        ? SUB_CATEGORIES['Professional'][0]
+        : 'All'
+    );
     setCurrentPage(1);
     setShowLowSignal(false);
   };
@@ -297,7 +325,12 @@ const App: React.FC = () => {
   };
 
   const handleLoginSuccess = () => {
+    sessionStorage.setItem('hasLoggedIn', 'true');
     setIsLoggedIn(true);
+    // When login is successful, reset active category and sub-category to Technology and All
+    // to ensure a consistent starting state after login.
+    setActiveCategory('Technology');
+    setActiveSubCategory('All');
   };
 
   const handleLogout = () => {
@@ -335,9 +368,21 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (isLoggedIn) {
-      loadNews(activeCategory, activeSubCategory, categorySources[activeCategory], selectedModel);
+      // Ensure activeSubCategory is valid for the current activeCategory
+      const subCategoriesForActive = SUB_CATEGORIES[activeCategory];
+      const currentSubCatIsValid = subCategoriesForActive.includes(activeSubCategory);
+
+      if (!currentSubCatIsValid) {
+        // If the current sub-category is invalid, default to 'All' or the first available
+        const defaultSubCat = subCategoriesForActive.includes('All') ? 'All' : subCategoriesForActive[0];
+        setActiveSubCategory(defaultSubCat);
+        // Do not call loadNews here directly, as it will be called by the `activeSubCategory` dependency below.
+      } else {
+        loadNews(activeCategory, activeSubCategory, categorySources[activeCategory], selectedModel);
+      }
     }
   }, [activeCategory, activeSubCategory, categorySources, loadNews, selectedModel, isLoggedIn]);
+
 
   if (!isLoggedIn) {
     return <LoginGate onLoginSuccess={handleLoginSuccess} />;

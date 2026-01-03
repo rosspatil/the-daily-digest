@@ -44,6 +44,18 @@ export const fetchTechNews = async (
     categoryInstruction = `Focus on systemic banking shifts, macroeconomic policy changes, corporate earnings of giants, and major fintech developments. ${subCatText}`;
   } else if (category === 'Technology') {
     categoryInstruction = `Focus on industry-shaping AI, strategic startup acquisitions, massive hardware/software breakthroughs, and critical cybersecurity events. ${subCatText}`;
+  } else if (category === 'Professional') { // New Professional category logic
+    if (subCategory === 'Golang') {
+      categoryInstruction = `Focus on news, updates, tutorials, and best practices related to the Golang programming language and its ecosystem. ${subCatText}`;
+    } else if (subCategory === 'Customer Support AI') {
+      categoryInstruction = `Focus on advancements, applications, and trends in AI for customer support, including new tools, strategies, and case studies. ${subCatText}`;
+    } else if (subCategory === 'Cloud Computing') {
+      categoryInstruction = `Focus on major developments, services, and trends in cloud computing platforms like AWS, Azure, and Google Cloud, including new features, outages, and strategic partnerships. ${subCatText}`;
+    } else if (subCategory === 'Leadership') {
+      categoryInstruction = `Focus on articles and discussions related to leadership in technology, management best practices, team building, and career growth for engineering managers. ${subCatText}`;
+    } else { // 'All' for Professional
+      categoryInstruction = `Focus on news and insights relevant to engineering managers and tech professionals, covering industry trends, best practices, and career development. ${subCatText}`;
+    }
   } else {
     categoryInstruction = `Provide only critical headlines for the selected sector. ${subCatText}`;
   }
@@ -72,7 +84,8 @@ export const fetchTechNews = async (
   - category: exactly '${category}'
   - subCategory: the specific sub-topic if applicable
   - source: the primary publisher name (MATCH the names provided in source constraint if applicable, e.g. "TechCrunch", "The Verge")
-  - relevance: integer 1-10 (ensure high-quality stories are 5+)`;
+  - relevance: integer 1-10 (ensure high-quality stories are 5+)
+  - uri: the direct URL to the full article; it MUST be a valid, accessible link.`; // Added uri field and description
 
   try {
     const response = await ai.models.generateContent({
@@ -96,6 +109,11 @@ export const fetchTechNews = async (
 
     try {
       items = JSON.parse(jsonString);
+      // Validate that each item has a URI and it's a string
+      if (!items.every(item => item.uri && typeof item.uri === 'string')) {
+          console.error("Parsed news items are missing 'uri' or 'uri' is not a string.");
+          throw new Error("Model returned news items with missing or invalid URIs.");
+      }
     } catch (jsonError) {
       console.error("JSON parsing error in fetchTechNews:", jsonError);
       console.error("Raw model response (attempted parse):", jsonString);
