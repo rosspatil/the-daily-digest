@@ -5,16 +5,14 @@ interface NewsCardProps {
   item: NewsItem;
   onAnalyze: (item: NewsItem) => void;
   onShowSummary: (item: NewsItem) => void;
-  sourceDomain: string; // Re-added prop for the correct domain
+  sourceDomain: string;
 }
 
-// Generic fallback SVG for favicons
 const FALLBACK_FAVICON_SVG = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2364748B'%3E%3Cpath d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14.5c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm0-6.5c-.83 0-1.5-.67-1.5-1.5S11.17 7 12 7s1.5.67 1.5 1.5S12.83 10 12 10z'/%3E%3C/svg%3E`;
 
 const NewsCard: React.FC<NewsCardProps> = ({ item, onAnalyze, onShowSummary, sourceDomain }) => {
   return (
     <div className="glass p-6 rounded-2xl hover:border-emerald-500/50 transition-all duration-300 group flex flex-col h-full border border-white/5 relative overflow-hidden">
-      {/* Visual priority indicator */}
       {item.relevance > 8 && (
         <div className="absolute top-0 right-0 w-1.5 h-full bg-emerald-500/40 blur-[2px] pointer-events-none" />
       )}
@@ -39,6 +37,14 @@ const NewsCard: React.FC<NewsCardProps> = ({ item, onAnalyze, onShowSummary, sou
              <span className="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-[10px] font-medium text-emerald-400">
               {item.subCategory || 'General'}
             </span>
+            {item.publishedAtDisplay && (
+              <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+                {item.publishedAtDisplay}
+              </div>
+            )}
           </div>
         </div>
 
@@ -57,8 +63,7 @@ const NewsCard: React.FC<NewsCardProps> = ({ item, onAnalyze, onShowSummary, sou
 
       <button 
         onClick={() => onShowSummary(item)}
-        className="text-[17px] font-bold text-left text-white mb-3 group-hover:text-emerald-400 transition-colors leading-tight cursor-pointer hover:underline focus:outline-none focus:ring-2 focus:ring-emerald-500 rounded -ml-1 pr-1"
-        aria-label={`View full summary of ${item.title}`}
+        className="text-[17px] font-bold text-left text-white mb-3 group-hover:text-emerald-400 transition-colors leading-tight"
       >
         {item.title}
       </button>
@@ -71,7 +76,6 @@ const NewsCard: React.FC<NewsCardProps> = ({ item, onAnalyze, onShowSummary, sou
         <button 
           onClick={() => onAnalyze(item)}
           className="text-emerald-400 text-[10px] font-black uppercase tracking-[0.2em] hover:text-emerald-300 flex items-center gap-1.5 transition-all group/btn"
-          aria-label={`Get strategic analysis for ${item.title}`}
         >
           <span className="group-hover/btn:mr-1 transition-all">Strategic Analysis</span>
           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

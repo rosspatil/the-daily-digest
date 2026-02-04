@@ -8,12 +8,13 @@ interface SettingsModalProps {
   selectedModel: GeminiModel;
   onModelChange: (model: GeminiModel) => void;
   onClearCache: () => void;
-  onLogout: () => void; // New prop for clearing login state
+  onLogout: () => void;
 }
 
 const MODELS: { id: GeminiModel; name: string; description: string }[] = [
-  { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash-Lite', description: 'Fastest for basic text generation with low latency.' },
-  { id: 'gemini-flash-latest', name: 'Gemini 2.5 Flash (Latest)', description: 'General purpose Flash model from the 2.5 series, suitable for broad text tasks.' },
+  { id: 'gemini-3-flash-preview', name: 'Gemini 3 Flash (Preview)', description: 'Next-gen reasoning. Highly reliable for structural data and deep analysis.' },
+  { id: 'gemini-flash-latest', name: 'Gemini 2.5 Flash', description: 'Balanced performance for general news scanning.' },
+  { id: 'gemini-flash-lite-latest', name: 'Gemini 2.5 Flash-Lite', description: 'Fastest latency, suitable for quick summaries.' },
 ];
 
 const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -23,7 +24,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
   selectedModel,
   onModelChange,
   onClearCache,
-  onLogout, // Destructure new prop
+  onLogout,
 }) => {
   if (!isOpen) return null;
 
@@ -61,7 +62,7 @@ const SettingsModal: React.FC<SettingsModalProps> = ({
               Gemini Model Selection
             </h3>
             <p className="text-slate-400 text-sm mb-4">
-              Choose the Gemini model that best fits your needs. Faster models might be less capable for complex tasks.
+              Choose the Gemini model that best fits your needs. Gemini 3 is recommended for the most reliable news synthesis.
             </p>
             <select
               value={selectedModel}

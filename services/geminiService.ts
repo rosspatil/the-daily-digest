@@ -2,246 +2,173 @@ import { GoogleGenAI, Type } from "@google/genai";
 import { NewsItem, GroundingSource, AnalysisData, GeminiModel } from "../types";
 
 /**
- * Extracts a JSON string from a markdown code block.
- * If no markdown block is found, returns null.
+ * Robustly extracts a JSON string from model output.
+ * Handles markdown blocks, generic blocks, or raw bracketed strings.
  */
-function extractJsonFromMarkdown(text: string): string | null {
-  const match = text.match(/```json\n([\s\S]*?)\n```/);
-  if (match && match[1]) {
-    return match[1];
+function extractJson(text: string): string | null {
+  if (!text) return null;
+
+  const jsonBlockMatch = text.match(/```json\s*([\s\S]*?)\s*```/);
+  if (jsonBlockMatch && jsonBlockMatch[1]) {
+    return jsonBlockMatch[1].trim();
   }
-  return null; // Return null if no markdown block is found
+
+  const genericBlockMatch = text.match(/```\s*([\s\S]*?)\s*```/);
+  if (genericBlockMatch && genericBlockMatch[1]) {
+    const content = genericBlockMatch[1].trim();
+    if (content.startsWith('[') || content.startsWith('{')) {
+      return content;
+    }
+  }
+
+  const firstBracket = text.search(/[\[\{]/);
+  const lastBracket = Math.max(text.lastIndexOf(']'), text.lastIndexOf('}'));
+  
+  if (firstBracket !== -1 && lastBracket !== -1 && lastBracket > firstBracket) {
+    return text.substring(firstBracket, lastBracket + 1).trim();
+  }
+
+  return null;
 }
 
 export const fetchTechNews = async (
-  category: string = 'Technology', 
+  category: string, 
   subCategory: string = 'All',
   preferredSources: string[] = [],
-  modelName: GeminiModel = 'gemini-flash-latest'
+  modelName: GeminiModel = 'gemini-3-flash-preview'
 ): Promise<{ items: NewsItem[], sources: GroundingSource[] }> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const now = new Date();
   const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
   
-  const dateStringNow = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const dateStringYesterday = yesterday.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const dateStringNow = now.toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
 
   let categoryInstruction = "";
   const subCatText = subCategory !== 'All' ? `Specifically focusing on the sub-topic: ${subCategory}.` : "";
   
-  const sourceText = preferredSources.length > 0 
-    ? `CRITICAL: You MUST ONLY return news items that originated from or are reported by these specific domains/outlets: ${preferredSources.join(', ')}. If a story is not covered by these specific brands, exclude it.` 
-    : "You may use any reputable global news sources.";
+  // Enhanced source instruction to use site: operator
+  const sourceInstruction = preferredSources.length > 0 
+    ? `CRITICAL: You MUST ONLY return news items from these domains: ${preferredSources.join(', ')}. 
+       INSTRUCTION: When using the Google Search tool, focus your queries specifically on these sites using the 'site:' operator. 
+       For example: 'site:${preferredSources[0]} ${category} ${subCategory}'.`
+    : "Use reputable global news sources like Reuters, Bloomberg, TechCrunch, CNBC, and Moneycontrol.";
 
   if (category === 'Politics') {
-    categoryInstruction = `Focus on high-stakes political news concerning India, the European Union (EU), and the United States (US). ${subCatText}`;
+    categoryInstruction = `Focus on political news from India, EU, and US. ${subCatText}`;
   } else if (category === 'Geo-politics') {
-    categoryInstruction = `Focus on strategic international relations, global diplomacy shifts, and major geopolitical conflicts. ${subCatText}`;
+    categoryInstruction = `Focus on diplomacy and international conflicts. ${subCatText}`;
   } else if (category === 'Markets') {
-    categoryInstruction = `Focus on major stock market movements, global indices (S&P 500, Nifty, etc.), commodities, and market-moving corporate events. ${subCatText}`;
+    categoryInstruction = `Focus on global stock market movements, Nifty/Sensex, indices, and commodities. ${subCatText}`;
   } else if (category === 'Finance') {
-    categoryInstruction = `Focus on systemic banking shifts, macroeconomic policy changes, corporate earnings of giants, and major fintech developments. ${subCatText}`;
+    categoryInstruction = `Focus on economy, banking, and fintech. ${subCatText}`;
   } else if (category === 'Technology') {
-    categoryInstruction = `Focus on industry-shaping AI, strategic startup acquisitions, massive hardware/software breakthroughs, and critical cybersecurity events. ${subCatText}`;
-  } else if (category === 'Professional') { // New Professional category logic
-    if (subCategory === 'Golang') {
-      categoryInstruction = `Focus on news, updates, tutorials, and best practices related to the Golang programming language and its ecosystem. ${subCatText}`;
-    } else if (subCategory === 'Customer Support AI') {
-      categoryInstruction = `Focus on advancements, applications, and trends in AI for customer support, including new tools, strategies, and case studies. ${subCatText}`;
-    } else if (subCategory === 'Cloud Computing') {
-      categoryInstruction = `Focus on major developments, services, and trends in cloud computing platforms like AWS, Azure, and Google Cloud, including new features, outages, and strategic partnerships. ${subCatText}`;
-    } else if (subCategory === 'Leadership') {
-      categoryInstruction = `Focus on articles and discussions related to leadership in technology, management best practices, team building, and career growth for engineering managers. ${subCatText}`;
-    } else { // 'All' for Professional
-      categoryInstruction = `Focus on news and insights relevant to engineering managers and tech professionals, covering industry trends, best practices, and career development. ${subCatText}`;
-    }
-  } else {
-    categoryInstruction = `Provide only critical headlines for the selected sector. ${subCatText}`;
+    categoryInstruction = `Focus on AI, hardware, software, and cybersecurity. ${subCatText}`;
+  } else if (category === 'Professional') {
+    categoryInstruction = `Focus on professional updates for: ${subCategory}.`;
   }
 
-  const prompt = `Provide a comprehensive list of EXACTLY 50 unique news items from the LAST 24 HOURS (between ${dateStringYesterday} and ${dateStringNow}). 
+  const prompt = `YOU ARE A REAL-TIME NEWS AGGREGATOR.
+  USE THE GOOGLE SEARCH TOOL TO SCAN THE WEB FOR NEWS PUBLISHED IN THE LAST 24 HOURS.
+  CURRENT TIME: ${dateStringNow}
   
-  Category Focus: ${category}
-  Instruction: ${categoryInstruction}
-  Source Constraint: ${sourceText}
+  TASK: Synthesize exactly 25 major headlines for the category: ${category}.
+  ${categoryInstruction}
+  ${sourceInstruction}
+
+  MANDATORY GUIDELINES:
+  1. DO NOT MENTION KNOWLEDGE CUTOFFS. Rely SOLELY on results from the Google Search tool.
+  2. If preferred sources are specified, DO NOT include any news from other domains.
+  3. Provide exactly 25 items (minimum 15).
+  4. Respond ONLY with a valid JSON array inside a markdown block.
+  5. Each item must have:
+     - "id": Unique string
+     - "title": Compelling headline
+     - "summary": 2-3 sentence strategic summary
+     - "category": ${category}
+     - "subCategory": The specific sub-topic
+     - "source": Name of the publisher
+     - "relevance": 1-10 (how critical the news is)
+     - "uri": URL to the article
+     - "publishedAt": VALID ISO 8601 timestamp (e.g. 2024-05-20T14:30:00Z)
+     - "publishedAtDisplay": Human readable relative time (e.g. "2 hours ago", "Today, 9:00 AM")
   
-  SCORING GUIDELINE (RELEVANCE):
-  - Scale: 1 to 10.
-  - 10: World-changing/Historical event.
-  - 8-9: Major sector-defining news.
-  - 5-7: Significant daily news.
-  - 1-4: Minor updates or niche news.
-  
-  CRITICAL: Since this is a "Daily Digest", MOST actual news stories from the last 24 hours should be scored between 5 and 10. Do not be overly conservative with scores; if it is a real story worth reading today, it is at least a 5.
-  
-  MANDATORY: Provide exactly 50 distinct items.
-  
-  Structure the response as a JSON array of objects:
-  - id: unique string
-  - title: clear, impactful headline
-  - summary: a concise yet descriptive paragraph (3-5 sentences) providing key details.
-  - category: exactly '${category}'
-  - subCategory: the specific sub-topic if applicable
-  - source: the primary publisher name (MATCH the names provided in source constraint if applicable, e.g. "TechCrunch", "The Verge")
-  - relevance: integer 1-10 (ensure high-quality stories are 5+)
-  - uri: the direct URL to the full article; it MUST be a valid, accessible link.`; // Added uri field and description
+  FORMAT:
+  \`\`\`json
+  [
+    { "id": "...", "title": "...", "publishedAt": "2024-05-20T14:30:00Z", "publishedAtDisplay": "2 hours ago", ... }
+  ]
+  \`\`\``;
 
   try {
     const response = await ai.models.generateContent({
-      model: modelName, // Use dynamic modelName
+      model: modelName,
       contents: prompt,
       config: {
         tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 } // Disable thinking for consistency
+        temperature: 0.1
       },
     });
 
-    let items: NewsItem[] = [];
-    const rawResponseText = response.text || "";
-    const jsonString = extractJsonFromMarkdown(rawResponseText);
-
+    const jsonString = extractJson(response.text || "");
     if (!jsonString) {
-      console.error("Model response did not contain a JSON markdown block.");
-      console.error("Raw model response:", rawResponseText);
-      throw new Error("Model returned malformed JSON or an unexpected response format.");
+      throw new Error("UNAVAILABLE: The model provided a non-structured response.");
     }
 
-    try {
-      items = JSON.parse(jsonString);
-      // Validate that each item has a URI and it's a string
-      if (!items.every(item => item.uri && typeof item.uri === 'string')) {
-          console.error("Parsed news items are missing 'uri' or 'uri' is not a string.");
-          throw new Error("Model returned news items with missing or invalid URIs.");
-      }
-    } catch (jsonError) {
-      console.error("JSON parsing error in fetchTechNews:", jsonError);
-      console.error("Raw model response (attempted parse):", jsonString);
-      console.error("Full raw model response:", rawResponseText);
-      throw new Error("Failed to parse news items from model response.");
-    }
-    
+    const items = JSON.parse(jsonString);
     const sources: GroundingSource[] = [];
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    
     if (chunks) {
       chunks.forEach((chunk: any) => {
-        if (chunk.web && chunk.web.uri && chunk.web.title) {
+        if (chunk.web?.uri && chunk.web?.title) {
           sources.push({ title: chunk.web.title, uri: chunk.web.uri });
         }
       });
     }
 
-    const uniqueSources = Array.from(new Map(sources.map(s => [s.uri, s])).values());
-    return { items, sources: uniqueSources };
+    return { 
+      items: items.map((i: any) => ({ ...i, category })), 
+      sources: Array.from(new Map(sources.map(s => [s.uri, s])).values()) 
+    };
   } catch (error: any) {
-    console.error("Gemini API Error (fetchTechNews):", error);
-    if (error.message && error.message.includes("API key not found or invalid")) { 
-      throw new Error("API key missing or invalid. Please ensure process.env.API_KEY is set correctly.");
+    console.error("fetchTechNews error:", error);
+    if (error.message.includes("cutoff") || error.message.includes("fulfill")) {
+       throw new Error("UNAVAILABLE: Synthesis engine blocked by internal safety filters for real-time data.");
     }
-    // For any other error, including JSON parsing issues or model's "I am sorry" response
-    // we throw a generic UNAVAILABLE error to trigger the UI error message.
-    throw new Error("UNAVAILABLE"); 
+    throw new Error(error.message || "Failed to load news.");
   }
 };
 
 export const fetchDeepAnalysis = async (
   item: NewsItem,
-  modelName: GeminiModel = 'gemini-flash-latest'
+  modelName: GeminiModel = 'gemini-3-flash-preview'
 ): Promise<AnalysisData> => {
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-  const prompt = `Perform a strategic deep-dive into the following news item:
-  Title: "${item.title}"
-  Summary: "${item.summary}"
-  
-  MANDATORY: Provide a comprehensive analysis in simple, clear English, avoiding unnecessary jargon. Structure the response like a concise blog post, using Markdown for formatting (headings, bullet points, bold text, and clear paragraphs separated by newlines).
-  
-  Analysis should cover three distinct sections:
-  
-  1.  **Strategic Impact (marketImpact)**:
-      *   Explain the immediate and potential long-term impact on relevant markets, industries, or sectors.
-      *   Use clear language, e.g., "This could lead to..." or "Investors might see..."
-      *   Approximately 3-5 sentences, using bullet points for key impacts.
-  
-  2.  **Contextual Drivers (technicalContext)**:
-      *   Describe the underlying technical, political, or economic factors that led to this development.
-      *   Break down any complex concepts into easily digestible explanations.
-      *   Approximately 3-5 sentences, using bullet points for key drivers.
-  
-  3.  **Risk & Future Outlook (futureOutlook)**:
-      *   Discuss potential risks, challenges, or opportunities arising from this news.
-      *   Provide a forward-looking perspective for the next 6-12 months.
-      *   Approximately 3-5 sentences, using bullet points for outlooks.
-  
-  CRITICAL: The response MUST be a JSON object with EXACTLY these three top-level keys: "marketImpact", "technicalContext", and "futureOutlook". The values for these keys must be strings containing the markdown-formatted blog post sections.
-  
-  Example JSON structure:
-  {
-    "marketImpact": "## Market Impact\\n\\nThis is the impact **written in simple English**.\\n*   Point 1\\n*   Point 2",
-    "technicalContext": "## Technical Context\\n\\nExplanation of drivers in simple terms.\\n\\nAnother paragraph.",
-    "futureOutlook": "## Future Outlook\\n\\n*   Opportunity A\\n*   Risk B"
-  }`;
+  const prompt = `Strategic deep-dive for: "${item.title}". Return JSON with keys: marketImpact, technicalContext, futureOutlook. Use Google Search for the latest data.`;
 
   try {
     const response = await ai.models.generateContent({
-      model: modelName, // Use dynamic modelName
+      model: modelName,
       contents: prompt,
-      config: {
-        tools: [{ googleSearch: {} }],
-        thinkingConfig: { thinkingBudget: 0 } // Disable thinking for consistency
-      },
+      config: { tools: [{ googleSearch: {} }], temperature: 0.1 },
     });
-
-    let analysis: AnalysisData = { marketImpact: "No analysis available.", technicalContext: "No context available.", futureOutlook: "No outlook available.", sources: [] };
-    const rawResponseText = response.text || "";
-    const jsonString = extractJsonFromMarkdown(rawResponseText);
-
-    if (!jsonString) {
-      console.error("Model response for deep analysis did not contain a JSON markdown block.");
-      console.error("Raw model response:", rawResponseText);
-      throw new Error("Model returned malformed JSON or an unexpected response format for analysis.");
-    }
-
-    try {
-      const parsedAnalysis = JSON.parse(jsonString);
-      
-      // Explicitly map to expected keys, providing fallbacks
-      analysis.marketImpact = parsedAnalysis.marketImpact || "No strategic impact analysis available.";
-      analysis.technicalContext = parsedAnalysis.technicalContext || "No contextual drivers analysis available.";
-      analysis.futureOutlook = parsedAnalysis.futureOutlook || "No risk & future outlook analysis available.";
-
-    } catch (jsonError) {
-      console.error("JSON parsing error in fetchDeepAnalysis:", jsonError);
-      console.error("Raw model response (attempted parse):", jsonString);
-      console.error("Full raw model response:", rawResponseText);
-      throw new Error("Failed to parse analysis data from model response.");
-    }
-    
+    const jsonString = extractJson(response.text || "");
+    if (!jsonString) throw new Error("Analysis failed.");
+    const parsed = JSON.parse(jsonString);
     const sources: GroundingSource[] = [];
     const chunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-    
     if (chunks) {
       chunks.forEach((chunk: any) => {
-        if (chunk.web && chunk.web.uri && chunk.web.title) {
-          sources.push({ title: chunk.web.title, uri: chunk.web.uri });
-        }
+        if (chunk.web?.uri && chunk.web?.title) sources.push({ title: chunk.web.title, uri: chunk.web.uri });
       });
     }
-
-    const uniqueSources = Array.from(new Map(sources.map(s => [s.uri, s])).values());
-
     return {
-      marketImpact: analysis.marketImpact,
-      technicalContext: analysis.technicalContext,
-      futureOutlook: analysis.futureOutlook,
-      sources: uniqueSources
+      marketImpact: parsed.marketImpact || "",
+      technicalContext: parsed.technicalContext || "",
+      futureOutlook: parsed.futureOutlook || "",
+      sources: Array.from(new Map(sources.map(s => [s.uri, s])).values())
     };
-  } catch (error: any) {
-    console.error("Gemini API Error (fetchDeepAnalysis):", error);
-    if (error.message && error.message.includes("API key not found or invalid")) { 
-      throw new Error("API key missing or invalid. Please ensure process.env.API_KEY is set correctly.");
-    }
+  } catch (error) {
     throw new Error("UNAVAILABLE");
   }
 };
