@@ -82,7 +82,7 @@ export const fetchTechNews = async (
   3. If preferred sources are specified, DO NOT include any news from other domains.
   4. Provide exactly 25 items (minimum 15).
   5. Respond ONLY with a valid JSON array inside a markdown block.
-  6. Each item MUST have a REAL, WORKING URL found via the search tool. DO NOT hallucinate URLs.
+  6. NO HALLUCINATED URLS: Every "uri" MUST be a direct, clickable link to the original article found in the search results. DO NOT guess, truncate, or invent URLs. If you cannot find the direct URL for a specific headline, omit that item.
   7. Each item must have:
      - "id": Unique string
      - "title": Compelling headline
@@ -91,9 +91,11 @@ export const fetchTechNews = async (
      - "subCategory": The specific sub-topic
      - "source": Name of the publisher
      - "relevance": 1-10 (how critical the news is)
-     - "uri": THE ACTUAL DIRECT URL TO THE ARTICLE (MANDATORY)
+     - "uri": THE EXACT DIRECT URL TO THE SOURCE ARTICLE (MANDATORY)
      - "publishedAt": VALID ISO 8601 timestamp (MUST BE AFTER ${dateStringYesterday}T00:00:00Z)
      - "publishedAtDisplay": Human readable relative time (e.g. "2 hours ago", "Today, 9:00 AM")
+  
+  VERIFICATION: Before finalizing the JSON, double-check that every "uri" is a complete and valid URL (starting with http:// or https://) that leads directly to the news story.
   
   FORMAT:
   \`\`\`json
