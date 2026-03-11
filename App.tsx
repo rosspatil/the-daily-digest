@@ -137,7 +137,17 @@ const App: React.FC = () => {
     const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
     return sortedItems.slice(startIndex, startIndex + ITEMS_PER_PAGE).map(item => {
       const sourceOption = PRESET_SOURCES_MAP[item.category as Category]?.find(s => s.name.toLowerCase() === item.source.toLowerCase());
-      return { ...item, sourceDomain: sourceOption?.domain || 'example.com' };
+      
+      let domain = sourceOption?.domain;
+      if (!domain && item.uri) {
+        try {
+          domain = new URL(item.uri).hostname.replace('www.', '');
+        } catch (e) {
+          domain = 'news-source.com';
+        }
+      }
+      
+      return { ...item, sourceDomain: domain || 'news-source.com' };
     });
   }, [sortedItems, currentPage]);
 

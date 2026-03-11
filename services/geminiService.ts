@@ -42,7 +42,8 @@ export const fetchTechNews = async (
   const now = new Date();
   const yesterday = new Date(now.getTime() - (24 * 60 * 60 * 1000));
   
-  const dateStringNow = now.toLocaleString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const dateStringNow = now.toISOString();
+  const dateStringYesterday = yesterday.toISOString().split('T')[0]; // YYYY-MM-DD
 
   let categoryInstruction = "";
   const subCatText = subCategory !== 'All' ? `Specifically focusing on the sub-topic: ${subCategory}.` : "";
@@ -50,9 +51,9 @@ export const fetchTechNews = async (
   // Enhanced source instruction to use site: operator
   const sourceInstruction = preferredSources.length > 0 
     ? `CRITICAL: You MUST ONLY return news items from these domains: ${preferredSources.join(', ')}. 
-       INSTRUCTION: When using the Google Search tool, focus your queries specifically on these sites using the 'site:' operator. 
-       For example: 'site:${preferredSources[0]} ${category} ${subCategory}'.`
-    : "Use reputable global news sources like Reuters, Bloomberg, TechCrunch, CNBC, and Moneycontrol.";
+       INSTRUCTION: When using the Google Search tool, focus your queries specifically on these sites using the 'site:' operator and the 'after:' operator. 
+       For example: 'site:${preferredSources[0]} ${category} ${subCategory} after:${dateStringYesterday}'.`
+    : `Use reputable global news sources. INSTRUCTION: Use the 'after:${dateStringYesterday}' operator in your search queries to ensure freshness.`;
 
   if (category === 'Politics') {
     categoryInstruction = `Focus on political news from India, EU, and US. ${subCatText}`;
@@ -69,19 +70,20 @@ export const fetchTechNews = async (
   }
 
   const prompt = `YOU ARE A REAL-TIME NEWS AGGREGATOR.
-  USE THE GOOGLE SEARCH TOOL TO SCAN THE WEB FOR NEWS PUBLISHED IN THE LAST 24 HOURS.
-  CURRENT TIME: ${dateStringNow}
+  USE THE GOOGLE SEARCH TOOL TO SCAN THE WEB FOR NEWS PUBLISHED *ONLY* BETWEEN ${dateStringYesterday} AND ${dateStringNow}.
   
   TASK: Synthesize exactly 25 major headlines for the category: ${category}.
   ${categoryInstruction}
   ${sourceInstruction}
 
   MANDATORY GUIDELINES:
-  1. DO NOT MENTION KNOWLEDGE CUTOFFS. Rely SOLELY on results from the Google Search tool.
-  2. If preferred sources are specified, DO NOT include any news from other domains.
-  3. Provide exactly 25 items (minimum 15).
-  4. Respond ONLY with a valid JSON array inside a markdown block.
-  5. Each item must have:
+  1. FRESHNESS IS CRITICAL: DO NOT include any news published before ${dateStringYesterday}.
+  2. DO NOT MENTION KNOWLEDGE CUTOFFS. Rely SOLELY on results from the Google Search tool.
+  3. If preferred sources are specified, DO NOT include any news from other domains.
+  4. Provide exactly 25 items (minimum 15).
+  5. Respond ONLY with a valid JSON array inside a markdown block.
+  6. Each item MUST have a REAL, WORKING URL found via the search tool. DO NOT hallucinate URLs.
+  7. Each item must have:
      - "id": Unique string
      - "title": Compelling headline
      - "summary": 2-3 sentence strategic summary
@@ -89,8 +91,8 @@ export const fetchTechNews = async (
      - "subCategory": The specific sub-topic
      - "source": Name of the publisher
      - "relevance": 1-10 (how critical the news is)
-     - "uri": URL to the article
-     - "publishedAt": VALID ISO 8601 timestamp (e.g. 2024-05-20T14:30:00Z)
+     - "uri": THE ACTUAL DIRECT URL TO THE ARTICLE (MANDATORY)
+     - "publishedAt": VALID ISO 8601 timestamp (MUST BE AFTER ${dateStringYesterday}T00:00:00Z)
      - "publishedAtDisplay": Human readable relative time (e.g. "2 hours ago", "Today, 9:00 AM")
   
   FORMAT:

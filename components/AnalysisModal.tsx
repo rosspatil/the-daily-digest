@@ -130,18 +130,26 @@ const AnalysisModal: React.FC<AnalysisModalProps> = ({ item, data, loading, onCl
                 <div className="pt-6 border-t border-white/10 mt-8">
                   <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">Grounding Verification</h4>
                   <div className="flex flex-wrap gap-2">
-                    {data.sources.map((s, idx) => (
-                      <a 
-                        key={idx} 
-                        href={s.uri} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="text-[11px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all"
-                        aria-label={`View source: ${s.title || new URL(s.uri).hostname}`}
-                      >
-                        {new URL(s.uri).hostname}
-                      </a>
-                    ))}
+                    {data.sources.map((s, idx) => {
+                      let hostname = 'source';
+                      try {
+                        hostname = new URL(s.uri).hostname.replace('www.', '');
+                      } catch (e) {
+                        hostname = s.title || 'view source';
+                      }
+                      return (
+                        <a 
+                          key={idx} 
+                          href={s.uri} 
+                          target="_blank" 
+                          rel="noreferrer"
+                          className="text-[11px] bg-white/5 hover:bg-white/10 border border-white/5 px-3 py-1.5 rounded-lg text-slate-400 hover:text-white transition-all"
+                          aria-label={`View source: ${s.title || hostname}`}
+                        >
+                          {hostname}
+                        </a>
+                      );
+                    })}
                   </div>
                 </div>
               )}
